@@ -25,7 +25,7 @@ BluetoothSerial SerialBT;
 
 //Declare variables for functions
 // Stepper function
-char user_input;
+String user_input;
 int current_menu;
 //int y;
 //int state;
@@ -77,6 +77,7 @@ void setup() {
   Serial.println("The device started, now you can pair it with bluetooth!");
   Serial.println("Open remote control app on your camera!");
   delay(10000);
+  current_menu = 1;
 //  CameraConnection();
   menu_start();
 }
@@ -92,57 +93,93 @@ void setup() {
  //Main loop menu
 void loop() {
   while(SerialBT.available()){
-      user_input = SerialBT.read(); //Read user input and trigger appropriate function
-    switch (current_menu)
-        {
-          case 1: //Start menu
-            if (user_input =='1')
-            {
-               Avance(1);
-            }
-            if(user_input =='2')
-            {
-              Recule(1);
-            }
-            if(user_input =='3')
-            {
-              BalayageComplet();
-            }
-            if(user_input =='4')
-            {
-              Configuration();
-            }
+    user_input = SerialBT.readString(); //Read user input and trigger appropriate function
+    switch (current_menu) {
+      case 1: 
+        //Start menu
+        switch (user_input.toInt()) {
+          case 1:
+            Avance(PasAvance);
             break;
           case 2:
-            if (user_input =='1')
-            {
-               SerialBT.println("Entrer Pas (en um)");
-               current_menu = 3;
-            }
-            if(user_input =='2')
-            {
-              SerialBT.println("Entrer profondeur (en mm)");
-              current_menu = 3;
-            }
-            if(user_input =='3')
-            {
-              SerialBT.println("Entrer pas avance rapide (en mm)");
-              current_menu = 3;
-            }
-            if (user_input == '9')
-            {
-              SerialBT.println("Back selected");
-              current_menu = 1;
-            }
+            Recule(PasAvance);
             break;
           case 3:
-          current_menu = 1;
-            //ValueEnter();
+            BalayageComplet();
             break;
-            // code to be executed if n doesn't match any cases
+          case 4:
+            Configuration();
+            break;
+          default:
+            Error();
+            break;
         }
-      }
-      resetEDPins();
+        break;
+      case 2:
+        //Configuration menu
+        switch (user_input.toInt()) {
+          case 1:
+            SerialBT.print("Valeur du Pas actuelle: ");SerialBT.println(Steps);
+            SerialBT.println("Entrer la nouvelle valeur de Pas (en µm):");
+            current_menu = 3;
+            break;
+          case 2:
+            SerialBT.print("Valeur de profondeur actuelle: ");SerialBT.println(profondeur);
+            SerialBT.println("Entrer la nouvelle profondeur (en mm):");
+            current_menu = 4;
+            break;
+          case 3:
+            SerialBT.print("Valeur du pas pour une avance rapide actuelle: ");SerialBT.println(PasAvance);
+            SerialBT.println("Entrer pas avance rapide (en mm)");
+            current_menu = 5;
+            break;
+          case 9:
+            SerialBT.println("Back selected");
+            current_menu = 1;
+            break;
+          default:
+            Error();
+            break;
+        }
+        break;
+      case 3:
+        //Step menu
+        Steps = user_input.toInt();
+        SerialBT.print("La nouvelle valeur du Pas est : ");SerialBT.print(Steps);SerialBT.println("µm");
+        current_menu = 1;
+        break;
+      case 4:
+        //profondeur menu
+        profondeur = user_input.toInt();
+        SerialBT.print("La nouvelle valeur de Profondeur est : ");SerialBT.print(profondeur);SerialBT.println("mm");
+        current_menu = 1;
+        break;
+      case 5:
+        //avance rapide menu
+        PasAvance = user_input.toInt();
+        SerialBT.print("La nouvelle valeur de avance rapide est : ");SerialBT.print(PasAvance);SerialBT.println("mm");
+        current_menu = 1;
+        break;
+      default:
+        // code to be executed if n doesn't match any cases
+        Error();
+        break;
+    }
+    switch (current_menu) {
+      case 1:
+        SerialBT.println();
+        menu_start();
+        break;
+      case 2:
+        SerialBT.println();
+        menu_configuration();
+        break;
+      default:
+        break;  
+    }
+  }
+  
+  resetEDPins();
 }
 
 void menu_start()
@@ -153,19 +190,62 @@ void menu_start()
   SerialBT.println("3. Balayage Complet");
   SerialBT.println("4. Configuration");
   SerialBT.println();
-  current_menu = 1;
 }
 
-void Configuration()
-{
-  SerialBT.println("Lancer le scan selected");
+void menu_configuration() {
   SerialBT.println("Enter number for control option:");
   SerialBT.println("1. Steps");
   SerialBT.println("2. Profondeur (en mm)");
   SerialBT.println("3. Pas avance rapide");
   SerialBT.println("9. Retour menu");
   SerialBT.println();
+}
+
+void Error() {
+  SerialBT.println("Aucun des menus sélectionné");
+  current_menu = 1;
+}
+
+void Configuration()
+{
   current_menu = 2;
+}
+
+void Avance(int distance)
+{
+  SerialBT.println("On avance");
+  digitalWrite(EN, LOW); //Pull enable pin low to allow motor control
+  int PasCalc = distance*1000*360*StepperAngleDiv/(thread_size*StepperMinDegree); //nb de pas à faire
+  AngleForward(PasCalc);
+}
+
+void Recule(int distance)
+{
+  SerialBT.println("On recule");
+  digitalWrite(EN, LOW); //Pull enable pin low to allow motor control
+  int PasCalc = distance*1000*360*StepperAngleDiv/(thread_size*StepperMinDegree); //nb de pas à faire
+  AngleBackward(PasCalc);
+}
+
+void BalayageComplet()
+{
+  SerialBT.println("Lancer le scan selected");
+  digitalWrite(EN, LOW); //Pull enable pin low to allow motor control
+  int y;
+  int nbphoto = profondeur*1000/Steps;
+  int PasCalc = Steps*360*StepperAngleDiv/(thread_size*StepperMinDegree); //nb de pas à faire
+  for(y=0;y<nbphoto;y++)
+  {
+    SerialBT.println("On declenche!");
+    delay(attente);
+    DeclenchementPhoto();
+    SerialBT.println("On avance!");
+    SerialBT.println(y);
+    SerialBT.println(nbphoto);
+    AngleForward(PasCalc);
+  }
+  delay(attente);
+  DeclenchementPhoto();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -304,48 +384,7 @@ void TournerAngle(int Pas)
   }
 }
 
-void Avance(int distance)
-{
-  SerialBT.println("On avance");
-  digitalWrite(EN, LOW); //Pull enable pin low to allow motor control
-  int PasCalc = PasAvance*1000*360*StepperAngleDiv/(thread_size*StepperMinDegree); //nb de pas à faire
-  AngleForward(PasCalc);
-  SerialBT.println("Enter new option");
-  SerialBT.println();
-}
 
-void Recule(int distance)
-{
-  SerialBT.println("On recule");
-  digitalWrite(EN, LOW); //Pull enable pin low to allow motor control
-  int PasCalc = PasAvance*1000*360*StepperAngleDiv/(thread_size*StepperMinDegree); //nb de pas à faire
-  AngleBackward(PasCalc);
-  SerialBT.println("Enter new option");
-  SerialBT.println();
-}
-
-void BalayageComplet()
-{
-  SerialBT.println("C'est parti!");
-  digitalWrite(EN, LOW); //Pull enable pin low to allow motor control
-  int y;
-  int nbphoto = profondeur*1000/Steps;
-  int PasCalc = Steps*360*StepperAngleDiv/(thread_size*StepperMinDegree); //nb de pas à faire
-  for(y=0;y<nbphoto;y++)
-  {
-    SerialBT.println("On declenche!");
-    delay(attente);
-    DeclenchementPhoto();
-    SerialBT.println("On avance!");
-    SerialBT.println(y);
-    SerialBT.println(nbphoto);
-    AngleForward(PasCalc);
-  }
-  delay(attente);
-  DeclenchementPhoto();
-  SerialBT.println("Enter new option");
-  SerialBT.println();
-}
 
 //Reset Easy Driver pins to default states
 void resetEDPins()
