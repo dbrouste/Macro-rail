@@ -12,8 +12,8 @@ BluetoothSerial SerialBT;
  //Declare pin functions on RedBoard
 #define stp 32
 #define dir 33
-#define MS1 34
-#define MS2 35
+#define MS1 26
+#define MS2 27
 #define EN  25
 
 //****Stepper driver Microstep Resolution************
@@ -37,7 +37,8 @@ int thread_size = 700; //in um. M3 = 600 M4 = 700 M5 = 800
 int Steps = 20; // in um, lenght between focal plane
 int attente = 1000; // Attente avant photo (en ms)
 int profondeur = 4; //in mm 
-int PasAvance = 1; //in mm
+int PasAvance = 5; //in mm
+int Coefficient = 5;// Pb dans formule ou je ne sais ou, permet de compenser
 
 
 
@@ -215,16 +216,18 @@ void Avance(int distance)
 {
   SerialBT.println("On avance");
   digitalWrite(EN, LOW); //Pull enable pin low to allow motor control
-  int PasCalc = distance*1000*360*StepperAngleDiv/(thread_size*StepperMinDegree); //nb de pas à faire
+  int PasCalc = distance*1000*360*StepperAngleDiv/(thread_size*StepperMinDegree)*Coefficient; //nb de pas à faire
   AngleForward(PasCalc);
+  digitalWrite(EN, HIGH); //Pull enable pin high to disable motor control
 }
 
 void Recule(int distance)
 {
   SerialBT.println("On recule");
   digitalWrite(EN, LOW); //Pull enable pin low to allow motor control
-  int PasCalc = distance*1000*360*StepperAngleDiv/(thread_size*StepperMinDegree); //nb de pas à faire
+  int PasCalc = distance*1000*360*StepperAngleDiv/(thread_size*StepperMinDegree)*Coefficient; //nb de pas à faire
   AngleBackward(PasCalc);
+  digitalWrite(EN, HIGH); //Pull enable pin high to disable motor control
 }
 
 void BalayageComplet()
@@ -233,7 +236,7 @@ void BalayageComplet()
   digitalWrite(EN, LOW); //Pull enable pin low to allow motor control
   int y;
   int nbphoto = profondeur*1000/Steps;
-  int PasCalc = Steps*360*StepperAngleDiv/(thread_size*StepperMinDegree); //nb de pas à faire
+  int PasCalc = Steps*360*StepperAngleDiv/(thread_size*StepperMinDegree)*Coefficient; //nb de pas à faire
   for(y=0;y<nbphoto;y++)
   {
     SerialBT.println("On declenche!");
@@ -337,6 +340,7 @@ void ResolutionMoteur(int Resolution)
   if (Resolution = 8) {
     digitalWrite(MS1, HIGH); //Pull MS1, and MS2 high to set logic to 1/8th microstep resolution
     digitalWrite(MS2, HIGH);
+    SerialBT.println("Resolution 8");
     }
   else if (Resolution = 4) {
     digitalWrite(MS1, LOW);
@@ -349,6 +353,7 @@ void ResolutionMoteur(int Resolution)
   else if (Resolution = 1) {
     digitalWrite(MS1, LOW);
     digitalWrite(MS2, LOW);
+    SerialBT.println("Resolution 1");
     }
 }
 
@@ -375,6 +380,7 @@ void TournerAngle(int Pas)
 {
   ResolutionMoteur(StepperAngleDiv);
   int x;
+  
   for(x= 0; x<Pas; x++)  //Loop the forward stepping enough times for motion to be visible
   {
     digitalWrite(stp,HIGH); //Trigger one step forward
