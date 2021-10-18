@@ -337,20 +337,20 @@ void DeclenchementPhoto()
 //Resolution moteur
 void ResolutionMoteur(int Resolution)
 {
-  if (Resolution = 8) {
+  if (Resolution == 8) {
     digitalWrite(MS1, HIGH); //Pull MS1, and MS2 high to set logic to 1/8th microstep resolution
     digitalWrite(MS2, HIGH);
     SerialBT.println("Resolution 8");
     }
-  else if (Resolution = 4) {
+  else if (Resolution == 4) {
     digitalWrite(MS1, LOW);
     digitalWrite(MS2, HIGH);
     }
-  else if (Resolution = 2) {
+  else if (Resolution == 2) {
     digitalWrite(MS1, HIGH);
     digitalWrite(MS2, LOW); 
     } 
-  else if (Resolution = 1) {
+  else if (Resolution == 1) {
     digitalWrite(MS1, LOW);
     digitalWrite(MS2, LOW);
     SerialBT.println("Resolution 1");
